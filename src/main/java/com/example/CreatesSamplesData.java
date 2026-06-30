@@ -13,7 +13,7 @@ import com.example.services.ProductService;
 
 @Configuration
 public class CreatesSamplesData {
-
+//La anotcion BEAN es una anotacion de metodo factory, utiliza el patron creacional de creación de objetos
     @Bean
     public CommandLineRunner samplesData(ProductService productService,
         PresentationService presentationService) {
@@ -31,7 +31,7 @@ public class CreatesSamplesData {
             // Persistiremos varios productos que tengan las presentaciones anteriores
 
             productService.save(Product.builder()
-                .name("rezma de papel")
+                .name("tijeras")
                 .description("Description")
                 .price(new BigDecimal(3.75))
                 .stock(10)
