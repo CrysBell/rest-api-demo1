@@ -13,7 +13,7 @@ import com.example.services.ProductService;
 
 @Configuration
 public class CreatesSamplesData {
-//La anotcion BEAN es una anotacion de metodo factory, utiliza el patron creacional de creación de objetos
+//DE EXAMEN La anotacion BEAN es una anotacion de metodo factory, utiliza el patron creacional de creación de objetos
     @Bean
     public CommandLineRunner samplesData(ProductService productService,
         PresentationService presentationService) {

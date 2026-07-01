@@ -1,9 +1,20 @@
 package com.example.controllers;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
+import org.springframework.dao.DataAccessException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.entities.Product;
@@ -11,42 +22,149 @@ import com.example.services.ProductService;
 
 import lombok.RequiredArgsConstructor;
 
-
-
 /**
-* La anotacion @RestController es para que todos los metodos que van a ser
-* creados dentro de este
-* controlador y reciben peticiones a través del protocolo HTTP, mediante los
-* verbos correspondientes
-* (GET, POST, PUT, DELETE, PATCH, etc) devuelvan o reciban datos en formato de
-* JSON (JavaScript Object Notation)
-*/
+ * La anotacion @RestController es para que todos los metodos que van a ser
+ * creados dentro de este
+ * controlador y reciben peticiones a través del protocolo HTTP, mediante los
+ * verbos correspondientes
+ * (GET, POST, PUT, DELETE, PATCH, etc) devuelvan o reciban datos en formato de
+ * JSON (JavaScript Object Notation)
+ */
 @RestController
 /**
-* Una API REST esta orientada al recurso, es decir, que el controlador necesita
-* que se le especifique
-* que recurso va a responder, por ejemplo en esto seria /products, y en
-* dependencia del verbo del protocolo
-* HTTP se estaria haciendo una peticion (request) contreta. Por ejemplo: Si el
-* verbo es GET, significa
-* que estamos solicitando todos los productos al recurso /products. Si el
-* verbo es POST significa que queremos
-* recibir un producto en formato JSON, en el cuerpo de la peticion (request) y
-* persistirlo (guardarlo)
-* en las tablas correspondientes
-*/
+ * Una API REST esta orientada al recurso, es decir, que el controlador necesita
+ * que se le especifique
+ * que recurso va a responder, por ejemplo en esto seria /products, y en
+ * dependencia del verbo del protocolo
+ * HTTP se estaria haciendo una peticion (request) contreta. Por ejemplo: Si el
+ * verbo es GET, significa
+ * que estamos solicitando todos los productos al recurso /products. Si el
+ * verbo es POST significa que queremos
+ * recibir un producto en formato JSON, en el cuerpo de la peticion (request) y
+ * persistirlo (guardarlo)
+ * en las tablas correspondientes
+ */
 @RequestMapping("/products")
 @RequiredArgsConstructor
 public class ProductController {
-    
+
     private final ProductService productService;
 
-    //Metodo que recibe una peticion para devolver un listado de todos lo productos
+    /**
+     * 
+     * IMPORTANTE!!!
+     * 
+     * Una API REST tiene que devolver informacion respecto a como ha sido
+     * solucionada la peticion (request),
+     * por ejemplo: el codigo 200 significa estado OK de la peticion, el codido 201
+     * significaria CREATED,
+     * el codigo 500 significaria que el servidor no ha podido cumplimentar la
+     * peticion, el codigo 401 NO ENCONTRADO,
+     * el codigo 403 prohibido, ect. Todos estos codigos se pueden encontrar en el
+     * sitio de W3Schools
+     * 
+     * https://www.w3schools.com/tags/ref_httpmessages.asp
+     * 
+     */
+    /**
+     * El metodo siguiente va a responder a una peticion (request) del tipo:
+     * 
+     * http://localhost:8080/productos?page=0&size=3
+     * 
+     * Donde los parametros page y size seran utilizados para la paginacion, y no
+     * seran requeridos, es decir,
+     * que no son obligatorios que se suministren. Y en caso de NO ser suministrados
+     * (page y size),
+     * los productos se van a devolver ordenados.
+     * 
+     * 
+     * 
+     * ¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡DE EXAMEN!!!!!!!
+     * Utilizamos RequestParam ya que en la ruta despues del signo de interrogacion
+     * lo que viene es un PARAMETRO,
+     * si no hay informacion con un signo de interrogacion, es una variable y se usa
+     * PathVariable
+     * 
+     * Es aconsejable hacer consultas a parametro primitivo en la medida de lo
+     * posible ya
+     * que las consultas a objetos requieren que el sistema realice una mayor carga
+     * de informacion
+     */
     @GetMapping
-    public List<Product> getProducts(){
+    public ResponseEntity<Map<String, Object>> dameProductos(
+            @RequestParam(name = "page", required = false) Integer page,
+            @RequestParam(name = "size", required = false) Integer size) {
 
-        List<Product> allProducts = productService.findAll();
+        Sort sort = Sort.by("name");
 
-        return allProducts;
+        List<Product> products = null;
+
+        Map<String, Object> responseAsMap = new HashMap<>();
+
+        // Comprobar si en la peticion (request) me han suministrado los parámetros page
+        // y size
+        if (page != null && size != null) {
+
+            Pageable pageable = PageRequest.of(page, size, sort);
+
+            // Implica devolver los productos paginados , es decir, una página de Product
+            Page<Product> productPage = productService.findAll(pageable);
+            products = productPage.getContent();
+            responseAsMap.put("productos", products);
+        } else {
+
+            // Devolver los productos ordenados por (name) por ejemplo
+            products = productService.findAll(sort);
+
+            responseAsMap.put("productos", products);
+        }
+
+        return new ResponseEntity<Map<String, Object>>(responseAsMap, HttpStatus.OK);
     }
+
+    /**
+     * El metodo siguiente recupera un Producto por el id que se recibe cmo una
+     * variable en la ruta,
+     * mediante un endpoint (url o uri) que tiene el fomato siguiente:
+     * 
+     * http://localhost:8080/products/1
+     * 
+     * Donde el vaor 1 al final del end point seria el id del producto
+     */
+
+    @GetMapping("/{id}")
+    public ResponseEntity<Map<String, Object>> findProductById(
+            @PathVariable(name = "id", required = true) int product_id) {
+
+        Map<String, Object> responseAsMap = new HashMap<>();
+
+        ResponseEntity<Map<String, Object>> responseEntity = null;
+
+        try {
+            Product product = productService.findById(product_id);
+            if (product != null) {
+                String successMessage = "mensaje todo OK " + product_id + " ha sido encontrado";
+
+                responseAsMap.put("successMesage", successMessage);
+                responseAsMap.put("producto encontrado", product);
+                responseEntity = new ResponseEntity<Map<String, Object>>(responseAsMap, HttpStatus.OK);
+            } else {
+                String failureMessage = "No ha sido encontrado ningun producto con id: "
+                + product_id;
+                responseAsMap.put("Error: ", failureMessage);
+                responseEntity = new ResponseEntity<>(responseAsMap, HttpStatus.NOT_FOUND);
+            }
+        } catch (DataAccessException e) {
+            String errorMessage = "Error grave al buscar el producto con id " 
+            + product_id + ", y la causa mas probable es: " + 
+            e.getMostSpecificCause().getMessage();
+            responseAsMap.put("Error grave: ", errorMessage);
+            responseEntity = new ResponseEntity<>(responseAsMap,
+            HttpStatus.INTERNAL_SERVER_ERROR);
+         } 
+
+
+                return responseEntity;
+                }
+
 }
