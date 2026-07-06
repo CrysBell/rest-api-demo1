@@ -65,4 +65,6 @@ public class Product implements Serializable {
     @ManyToOne(fetch = FetchType.LAZY)
     @JsonIgnoreProperties({"hibernateLazyInitializer","handler"})
     private Presentation presentation;
+
+    private String productImage;
 }

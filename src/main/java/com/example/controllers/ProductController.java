@@ -17,14 +17,17 @@ import org.springframework.validation.ObjectError;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
+
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.example.entities.Product;
 import com.example.services.ProductService;
 
+import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
@@ -175,11 +178,20 @@ public class ProductController {
     /**
      * Metodo que recibe por POST el producto para ser persistido/guardado, a su vez
      * valida el JSON recibido para comprobar si esta bien formado o no
-     */
-    @PostMapping
-    public ResponseEntity<Map<String, Object>> saveProduct(
-            @Valid @RequestBody Product product,
-            BindingResult result) {
+    * Primero: Hay que cambiar lo que recibe el metodo saveProduct, porque ya el producto
+    * no viene ocupando todo el cuerpo de la peticion (request), sino una parte, y la otra
+    * parte la ocupa la imagen del producto
+    *
+    * Y, muy importante, que no se nos olvide anotar este metodo y todos los que insertan, crean,
+    * eliminan registros en las tablas con la anotacion @Transactional,
+    * y tambien hay que especificar el tipo de archivo que va a consumir este metodo
+    */
+    @PostMapping(consumes = "multipart/file")
+    @Transactional
+    public ResponseEntity<Map<String, Object>> saveProduct(@Valid @RequestPart Product product,
+        BindingResult result, 
+        @RequestPart (name = "file", required = false) MultipartFile imagenDelProducto) {
+
         List<String> mensajesDeError = new ArrayList<>();
 
         Map<String, Object> responseAsMap = new HashMap<>();
@@ -204,6 +216,18 @@ public class ProductController {
         }
 
         // Pesistimos el producto porque ya esta bien formado
+
+       
+    /**
+     * Para guardar la imagen del producto, en primer lugar le agregaremos como prefijo un codigo
+     * alfanumerico (de letras y numeros), generado aleatoriamente a partir de un metodo que se
+     * encuentre en la biblioteca Apache Commons Lang3, que hay que descargar la dependencia desde
+     * el repositorio central de maven y agregarla al pom.xml
+     */
+        if (imagenDelProducto != null && !imagenDelProducto.isEmpty()) {
+            
+        }
+
         try {
             Product productoPersistido = productService.save(product);
             responseAsMap.put("mensaje: ", "Producto persistido exitosamente");
