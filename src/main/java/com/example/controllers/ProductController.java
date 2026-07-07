@@ -1,5 +1,6 @@
 package com.example.controllers;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -17,7 +18,7 @@ import org.springframework.validation.ObjectError;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
@@ -25,7 +26,9 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.example.entities.Product;
+import com.example.models.FileUploadResponse;
 import com.example.services.ProductService;
+import com.example.utilities.FileUploadUtil;
 
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
@@ -36,10 +39,12 @@ import lombok.RequiredArgsConstructor;
  * creados dentro de este
  * controlador y reciben peticiones a través del protocolo HTTP, mediante los
  * verbos correspondientes
- * (GET, POST, PUT, DELETE, PATCH, etc) devuelvan o reciban datos en formato de
+ * (GET, POST, PUT, DELETE, PATCH, etc.) devuelvan o reciban datos en formato de
  * JSON (JavaScript Object Notation)
  */
+
 @RestController
+
 /**
  * Una API REST esta orientada al recurso, es decir, que el controlador necesita
  * que se le especifique
@@ -58,6 +63,7 @@ import lombok.RequiredArgsConstructor;
 public class ProductController {
 
     private final ProductService productService;
+    private final FileUploadUtil fileUploadUtil;
 
     /**
      * 
@@ -69,16 +75,17 @@ public class ProductController {
      * significaria CREATED,
      * el codigo 500 significaria que el servidor no ha podido cumplimentar la
      * peticion, el codigo 401 NO ENCONTRADO,
-     * el codigo 403 prohibido, ect. Todos estos codigos se pueden encontrar en el
+     * el codigo 403 prohibido, etc. Todos estos codigos se pueden encontrar en el
      * sitio de W3Schools
      * 
      * https://www.w3schools.com/tags/ref_httpmessages.asp
      * 
      */
+
     /**
      * El metodo siguiente va a responder a una peticion (request) del tipo:
      * 
-     * http://localhost:8080/productos?page=0&size=3
+     * http://localhost:8080/products?page=0&size=3
      * 
      * Donde los parametros page y size seran utilizados para la paginacion, y no
      * seran requeridos, es decir,
@@ -86,77 +93,62 @@ public class ProductController {
      * (page y size),
      * los productos se van a devolver ordenados.
      * 
-     * 
-     * 
-     * ¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡DE EXAMEN!!!!!!!
-     * Utilizamos RequestParam ya que en la ruta despues del signo de interrogacion
-     * lo que viene es un PARAMETRO,
-     * si no hay informacion con un signo de interrogacion, es una variable y se usa
-     * PathVariable
-     * 
-     * Es aconsejable hacer consultas a parametro primitivo en la medida de lo
-     * posible ya
-     * que las consultas a objetos requieren que el sistema realice una mayor carga
-     * de informacion
      */
     @GetMapping
     public ResponseEntity<Map<String, Object>> dameProductos(
             @RequestParam(name = "page", required = false) Integer page,
             @RequestParam(name = "size", required = false) Integer size) {
 
+        List<Product> products = null;
+        Map<String, Object> responseAsMap = new HashMap<>();
         Sort sort = Sort.by("name");
 
-        List<Product> products = null;
-
-        Map<String, Object> responseAsMap = new HashMap<>();
-
-        // Comprobar si en la peticion (request) me han suministrado los parámetros page
+        // Comprobar si en la peticion (request) me han suministrado los parametros page
         // y size
         if (page != null && size != null) {
 
             Pageable pageable = PageRequest.of(page, size, sort);
 
-            // Implica devolver los productos paginados , es decir, una página de Product
+            // Implica devolver los productos paginados, es decir, una pagina de Product
             Page<Product> productPage = productService.findAll(pageable);
             products = productPage.getContent();
             responseAsMap.put("productos", products);
+
         } else {
 
-            // Devolver los productos ordenados por (name) por ejemplo
+            // Devolver los productos ordenados, por nombre (name), por ejemplo
             products = productService.findAll(sort);
-
             responseAsMap.put("productos", products);
         }
 
-        return new ResponseEntity<Map<String, Object>>(responseAsMap, HttpStatus.OK);
+        return new ResponseEntity<>(responseAsMap, HttpStatus.OK);
     }
 
     /**
-     * El metodo siguiente recupera un Producto por el id que se recibe cmo una
+     * El metodo siguiente recupera un Producto por el id que se recibe como una
      * variable en la ruta,
-     * mediante un endpoint (url o uri) que tiene el fomato siguiente:
+     * mediante un end point (url o uri) que tiene el formato siguiente:
      * 
-     * http://localhost:8080/products/1
+     * http://localhost:8080/productos/1
      * 
-     * Donde el vaor 1 al final del end point seria el id del producto
+     * Donde el valor 1 al final del end point seria el id del producto
      */
-
     @GetMapping("/{id}")
     public ResponseEntity<Map<String, Object>> findProductById(
             @PathVariable(name = "id", required = true) int product_id) {
 
         Map<String, Object> responseAsMap = new HashMap<>();
-
         ResponseEntity<Map<String, Object>> responseEntity = null;
 
         try {
             Product product = productService.findById(product_id);
             if (product != null) {
-                String successMessage = "mensaje todo OK " + product_id + " ha sido encontrado";
-
-                responseAsMap.put("successMesage", successMessage);
-                responseAsMap.put("producto encontrado", product);
-                responseEntity = new ResponseEntity<Map<String, Object>>(responseAsMap, HttpStatus.OK);
+                String successMessage = "El producto con id " + product_id +
+                        " ha sido encontrado";
+                responseAsMap.put("mensaje todo OK: ", successMessage);
+                responseAsMap.put("producto encontrado: ", product);
+                responseEntity = new ResponseEntity<Map<String, Object>>(responseAsMap,
+                        HttpStatus.OK);
             } else {
                 String failureMessage = "No ha sido encontrado ningun producto con id: "
                         + product_id;
@@ -176,69 +168,116 @@ public class ProductController {
     }
 
     /**
-     * Metodo que recibe por POST el producto para ser persistido/guardado, a su vez
-     * valida el JSON recibido para comprobar si esta bien formado o no
-    * Primero: Hay que cambiar lo que recibe el metodo saveProduct, porque ya el producto
-    * no viene ocupando todo el cuerpo de la peticion (request), sino una parte, y la otra
-    * parte la ocupa la imagen del producto
-    *
-    * Y, muy importante, que no se nos olvide anotar este metodo y todos los que insertan, crean,
-    * eliminan registros en las tablas con la anotacion @Transactional,
-    * y tambien hay que especificar el tipo de archivo que va a consumir este metodo
-    */
-    @PostMapping(consumes = "multipart/file")
+     * Metodo que recibe por POST el Producto para ser persistido, guardado, y que
+     * valida el JSON
+     * recibido, para comprobar si esta bien formado o no
+     * 
+     * Primero: Hay que cambiar lo que recibe el metodo saveProduct, porque ya el
+     * producto
+     * no viene ocupando todo el cuerpo de la peticion (request), sino una parte, y
+     * la otra
+     * parte la ocupa la imagen del producto
+     * 
+     * Y, muy importante, que no se nos olvide anotar este metodo y todos los que
+     * insertan, crean,
+     * eliminan registros en las tablas con la anotacion @Transactional,
+     * y tambien hay que especificar el tipo de archivo que va a consumir este
+     * metodo
+     * 
+     * @throws IOException
+     * 
+     */
+    @PostMapping(consumes = "multipart/form-data")
     @Transactional
     public ResponseEntity<Map<String, Object>> saveProduct(@Valid @RequestPart Product product,
-        BindingResult result, 
-        @RequestPart (name = "file", required = false) MultipartFile imagenDelProducto) {
+            BindingResult result,
+            @RequestPart(name = "file", required = false) MultipartFile imagenDelProducto) throws IOException {
 
         List<String> mensajesDeError = new ArrayList<>();
-
         Map<String, Object> responseAsMap = new HashMap<>();
-
         ResponseEntity<Map<String, Object>> responseEntity = null;
 
-        // Primero comprobar si hay errorres en el producto recibido
+        // Primero, comprobar si hay errores en el producto recibido
         if (result.hasErrors()) {
             // Recuperamos los errores que tiene el producto recibido y se lo informamos al
-            // que realizó la petición (request) de persistir el producto
+            // que realizo la peticion (request) de persistir el producto
             List<ObjectError> objectErrors = result.getAllErrors();
 
             objectErrors.stream().forEach(objectError -> mensajesDeError.add(objectError.getDefaultMessage()));
 
-            responseAsMap.put("El producto tiene los siguientes errores: ", mensajesDeError);
+            responseAsMap.put("El producto tiene los siguientes errores: ",
+                    mensajesDeError);
+            responseAsMap.put("Producto mal formado: ", product);
 
-            responseAsMap.put("Producto mal formado", product);
-
-            responseEntity = new ResponseEntity<Map<String, Object>>(responseAsMap, HttpStatus.BAD_REQUEST);
+            responseEntity = new ResponseEntity<>(responseAsMap,
+                    HttpStatus.BAD_REQUEST);
 
             return responseEntity;
         }
 
-        // Pesistimos el producto porque ya esta bien formado
+        // Persistimos el producto porque si hemos llegado a este punto es que esta bien
+        // formado
+        // Pero antes vamos a comprobar si hemos recibido imagen del producto, para
+        // guardarla
+        // en el sistema de archivo (file system)
 
-       
-    /**
-     * Para guardar la imagen del producto, en primer lugar le agregaremos como prefijo un codigo
-     * alfanumerico (de letras y numeros), generado aleatoriamente a partir de un metodo que se
-     * encuentre en la biblioteca Apache Commons Lang3, que hay que descargar la dependencia desde
-     * el repositorio central de maven y agregarla al pom.xml
-     */
         if (imagenDelProducto != null && !imagenDelProducto.isEmpty()) {
-            
+
+            /**
+             * Para guardar la imagen del producto, en primer lugar le agregaremos como
+             * prefijo un codigo
+             * alfanumerico (de letras y numeros), generado aleatoriamente a partir de un
+             * metodo que se
+             * encuentre en la biblioteca Apache Commonds Text, que hay que descargar la
+             * dependencia desde
+             * el repositorio central de maven y agregarla al pom.xml
+             */
+
+            /**
+             * Vamos a crear un Componente en un paquete que podria ser
+             * com.example.utilities, y este componente
+             * va a tener un metodo para guardar la imagen recibida en una carpeta del file
+             * system y devolver
+             * un codigo alfanumerico, generado aleatoriamente, que llevara como prefijo el
+             * nombre del fichero
+             * de imagen recibido.
+             * 
+             * Se hara uso intensivo de NIO.2 y se comprobara si la carpeta existe o no,
+             * para crearla
+             */
+
+            String fileCode = fileUploadUtil.saveFile(imagenDelProducto.getOriginalFilename(), imagenDelProducto);
+
+            product.setProductImage(fileCode + imagenDelProducto.getOriginalFilename());
+
+            /**
+             * Como es una API REST hay que devolver informacion al que ha realizado la
+             * request
+             * respecto a la imagen subida, para lo cual vamos a crear en un paquete llamado
+             * com.example.models un Record, donde devolveremos la informacion de la imagen
+             * subida
+             */
+
+            FileUploadResponse fileUploadResponse = new FileUploadResponse(
+                    fileCode + '-' + imagenDelProducto.getOriginalFilename(),
+                    "/products/fileDownLoad",
+                    imagenDelProducto.getSize());
+
+            responseAsMap.put("informacion de la imagen del producto", fileUploadResponse);
         }
 
         try {
             Product productoPersistido = productService.save(product);
-            responseAsMap.put("mensaje: ", "Producto persistido exitosamente");
+            responseAsMap.put("mensaje: ", "Producto persistido exitosamente!!!");
             responseAsMap.put("producto Persistido: ", productoPersistido);
             responseEntity = new ResponseEntity<Map<String, Object>>(responseAsMap, HttpStatus.CREATED);
         } catch (DataAccessException e) {
-            responseAsMap.put("Error Grave", "No ha podido ser guardado el producto y la causa más probable es: "
-                    + e.getMostSpecificCause().getMessage());
-            responseEntity = new ResponseEntity<Map<String,Object>>(responseAsMap, HttpStatus.INTERNAL_SERVER_ERROR);
+            responseAsMap.put("Error Grave", "No ha podido ser guardado el producto y la causa mas probable es: " +
+                    e.getMostSpecificCause().getMessage());
+            responseEntity = new ResponseEntity<Map<String, Object>>(responseAsMap,
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
+
         return responseEntity;
     }
-
 }

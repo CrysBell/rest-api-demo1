@@ -11,7 +11,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.ManyToOne;
-
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -26,8 +25,6 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 
-
-
 @Entity
 @Table(name = "products")
 @NoArgsConstructor
@@ -40,30 +37,30 @@ import lombok.ToString;
 public class Product implements Serializable {
 
     private static final long serialVersionUID = 1L;
-    
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
 
     @NotNull(message = "El producto tiene que tener un nombre")
     @NotEmpty(message = "El nombre del producto no puede estar vacio")
-    @Size( min = 4, max = 25, message = "el  nombre del producto no puede tener menos de 4 caracteres o más de 25" )
+    @Size(min = 4, max = 25, message = "El nombre del producto no puede tener menos de 4 caracteres ni mas de 25")
     private String name;
 
-    @NotNull(message = "La descripción del producto es requerida")
-    @NotBlank(message = "La descripcion del producto no puede contener espacion solamente")
-    @Size( min = 4, max = 45, message = "La descripción del producto no puede tener menos de 4 caracteres o más de 45" )
+    @NotNull(message = "La description del producto es requerida")
+    @NotBlank(message = "La description del producto no puede tener espacios vacios solamente")
+    @Size(max = 45, message = "La description no puede superar los 45 caracteres")
     private String description;
 
     @Min(value = 0, message = "El stock del producto no puede ser negativo")
     private int stock;
 
-    @Min(value = 0, message = "El precio del producto no puede tener un valor negativo")
+    @Min(value = 0, message = "El precio no puede estar en valores negativos")
     private BigDecimal price;
 
-    @NotNull(message = "La presntación del producto es requerida")
+    @NotNull(message = "La presentación del producto es requerida")
     @ManyToOne(fetch = FetchType.LAZY)
-    @JsonIgnoreProperties({"hibernateLazyInitializer","handler"})
+    @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
     private Presentation presentation;
 
     private String productImage;
